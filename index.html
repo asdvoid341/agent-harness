@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Harness, Explained</title>
+  <meta name="description" content="A working AI data-analyst agent on the left, and a live look inside its harness on the right: prompt assembly, the agent loop, tool validation, guardrails, retries and context management.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b5bd6'/%3E%3Cpath d='M9 16a7 7 0 1 1 7 7' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M16 19l0 4-4 0' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" defer></script>
+  <script type="module" src="src/main.js"></script>
+</head>
+<body data-pane="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">↻</span>
+      <div>
+        <div class="brand-name">Agent Harness, Explained</div>
+        <div class="brand-sub">A working agent on the left. What it's doing behind the scenes on the right.</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="mode-pill" class="mode-pill" data-mode="demo" title="Change provider / model"></button>
+      <button id="open-settings" class="btn ghost" title="Settings">⚙ <span class="hide-sm">Settings</span></button>
+      <a id="repo-link" class="btn ghost" href="#" target="_blank" rel="noopener" title="Source on GitHub">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span class="hide-sm">Source</span>
+      </a>
+    </div>
+  </header>
+
+  <nav class="mobile-tabs" role="tablist" aria-label="Panels">
+    <button role="tab" data-pane="app" aria-selected="true">The agent</button>
+    <button role="tab" data-pane="inspector" aria-selected="false">Behind the scenes</button>
+  </nav>
+
+  <main class="split">
+    <!-- ───────────── LEFT: the use case ───────────── -->
+    <section id="app-pane" class="pane app-pane" aria-label="Data analyst agent">
+      <div class="pane-head">
+        <div>
+          <h1>Data Analyst Agent</h1>
+          <p class="muted">Ask questions about your data in plain English.</p>
+        </div>
+        <button id="new-session" class="btn ghost" title="Start a new session (fresh history, re-assembled prompt)">＋ New session</button>
+      </div>
+
+      <div class="databar">
+        <span class="databar-label">Tables</span>
+        <div id="table-chips" class="table-chips"></div>
+        <div class="databar-actions">
+          <label class="btn small" title="Load your own CSV as a table (stays in your browser)">Upload CSV<input id="csv-input" type="file" accept=".csv,text/csv" hidden></label>
+          <button id="reset-data" class="btn small ghost" title="Restore the sample tables">Reset data</button>
+          <button id="memory-btn" class="btn small ghost" title="Long-term memory">🧠 <span id="memory-count">0</span></button>
+        </div>
+      </div>
+
+      <div id="demo-banner" class="demo-banner">
+        <span><b>Demo mode:</b> a scripted model drives the <i>real</i> harness and tools. Try the suggested questions.</span>
+        <button id="demo-add-key" class="btn small primary">Use my API key</button>
+      </div>
+
+      <div id="chat" class="chat"><div id="chat-log" class="chat-log" aria-live="polite"></div></div>
+
+      <form id="composer" class="composer">
+        <textarea id="prompt" rows="1" placeholder="Ask about your data…  (Enter to send, Shift+Enter for a new line)" aria-label="Message"></textarea>
+        <button id="send" class="btn primary" type="submit" disabled>Send</button>
+        <button id="stop" class="btn danger" type="button" hidden>Stop</button>
+      </form>
+    </section>
+
+    <!-- ───────────── RIGHT: behind the scenes ───────────── -->
+    <section id="inspector-pane" class="pane inspector-pane" aria-label="Behind the scenes">
+      <div class="pane-head">
+        <div>
+          <h2>Behind the scenes</h2>
+          <p class="muted">Live trace of the agent harness. Click a box to learn what it does.</p>
+        </div>
+        <div class="insp-controls">
+          <label class="switch" title="Pause before every phase of the loop"><input id="step-mode" type="checkbox"><span class="track"></span>Step mode</label>
+          <button id="next-step" class="btn small primary" hidden disabled>Next step ▶</button>
+          <button id="export-trace" class="btn small ghost" title="Download the full event trace as JSON">Export trace</button>
+        </div>
+      </div>
+
+      <div id="diagram" class="diagram"></div>
+
+      <div id="now-card" class="now-card">
+        <div class="now-top"><span class="now-dot"></span><span class="now-title">Waiting for a question</span></div>
+        <p class="now-what">Ask something on the left. Every step the harness takes will appear here as it happens.</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="k">Model calls</span><span class="v" id="st-iter">0</span></div>
+        <div class="stat"><span class="k" title="Tokens in / out for this request">Tokens in/out</span><span class="v" id="st-tokens">–</span></div>
+        <div class="stat"><span class="k">Cost</span><span class="v" id="st-cost">–</span></div>
+        <div class="stat"><span class="k">Elapsed</span><span class="v" id="st-time">–</span></div>
+        <div class="stat wide">
+          <span class="k">Context window</span>
+          <div class="meter"><div id="ctx-fill" class="meter-fill" data-level="low"></div></div>
+          <span class="v small" id="ctx-label">–</span>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="timeline" aria-selected="true">Timeline</button>
+        <button role="tab" data-tab="prompt" aria-selected="false">Prompt</button>
+        <button role="tab" data-tab="messages" aria-selected="false">Messages</button>
+        <button role="tab" data-tab="concepts" aria-selected="false">Concepts</button>
+      </div>
+      <div class="tab-panels">
+        <div id="tab-timeline" class="tab-panel">
+          <div id="timeline" class="timeline"><p class="timeline-empty muted">Events will stream in here. Click any entry to see the raw payload, including the exact HTTP request sent to the model.</p></div>
+        </div>
+        <div id="tab-prompt" class="tab-panel scroll" hidden></div>
+        <div id="tab-messages" class="tab-panel scroll" hidden></div>
+        <div id="tab-concepts" class="tab-panel scroll concepts" hidden></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ───────────── Settings ───────────── -->
+  <dialog id="settings" class="dialog">
+    <form method="dialog">
+      <h3>Model &amp; guardrails</h3>
+      <p id="set-message" class="set-message" hidden></p>
+
+      <label class="field">Provider
+        <select id="set-provider"></select>
+      </label>
+
+      <div id="key-row" class="field-group">
+        <label class="field">API key
+          <input id="set-key" type="password" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="key-meta">
+          <label class="check"><input id="set-remember" type="checkbox"> Remember in this tab only (sessionStorage)</label>
+          <a id="set-keylink" href="#" target="_blank" rel="noopener">Get a key ↗</a>
+        </div>
+        <p class="privacy">🔒 Your key is used only in your browser to call the provider directly. It is never sent anywhere else, there is no server, and it isn't written to disk unless you tick “remember” (cleared when the tab closes). Tip: use a key with a low spending limit.</p>
+      </div>
+
+      <div id="model-row" class="field-group">
+        <label class="field">Model
+          <input id="set-model" list="model-list" spellcheck="false">
+          <datalist id="model-list"></datalist>
+        </label>
+      </div>
+      <div id="effort-row" class="field-group">
+        <label class="field">Effort (Claude)
+          <select id="set-effort"><option value="low">low (cheapest, fastest)</option><option value="medium">medium</option><option value="high">high</option></select>
+        </label>
+      </div>
+
+      <fieldset>
+        <legend>Guardrails</legend>
+        <div class="grid2">
+          <label class="field">Max model calls / request<input id="lim-iter" type="number" min="1" max="30"></label>
+          <label class="field">Max cost / request (USD)<input id="lim-cost" type="number" min="0.01" max="20" step="0.01"></label>
+          <label class="field">Context budget (tokens)<input id="lim-context" type="number" min="2000" step="1000"></label>
+          <label class="field">Max tool output (chars)<input id="lim-output" type="number" min="500" step="500"></label>
+        </div>
+      </fieldset>
+
+      <p id="set-error" class="set-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button id="forget-keys" type="button" class="btn ghost small">Forget all keys</button>
+        <span class="spacer"></span>
+        <button value="cancel" class="btn ghost" formnovalidate>Cancel</button>
+        <button value="save" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ───────────── Memory ───────────── -->
+  <dialog id="memory-dialog" class="dialog">
+    <form method="dialog">
+      <h3>🧠 Long-term memory</h3>
+      <p class="muted">Insights the agent saved with <code>save_insight</code>. They are added to the system prompt when a <b>new session</b> starts. Stored only in this browser.</p>
+      <ul id="memory-list" class="memory-list"></ul>
+      <div class="dialog-actions">
+        <button id="memory-clear" type="button" class="btn ghost small">Clear memory</button>
+        <span class="spacer"></span>
+        <button class="btn primary">Close</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
