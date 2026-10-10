@@ -117,6 +117,7 @@ export class Agent {
         this.bus.emit('loop:decide', {
           continue: true,
           stopReason: res.stopReason,
+          tools: calls.map((c) => c.name),
           reason: `Model asked for ${calls.length} tool call${calls.length > 1 ? 's' : ''} (${calls.map((c) => c.name).join(', ')}): run them, then loop.`,
         });
 

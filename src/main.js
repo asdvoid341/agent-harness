@@ -10,8 +10,10 @@ import { generateSampleData } from './usecase/sample-data.js';
 import { SUGGESTIONS } from './usecase/demo-scripts.js';
 import { createChat } from './ui/chat.js';
 import { createInspector } from './ui/inspector.js';
+import { createLiveView } from './ui/liveview.js';
+import { createKpis } from './ui/kpis.js';
 import { createSettings } from './ui/settings.js';
-import { $, esc } from './ui/util.js';
+import { $, esc, storage } from './ui/util.js';
 import { APP_CONFIG } from './config.js';
 
 // ── Wiring: one bus, one agent, two views ────────────────────────────────────
@@ -49,7 +51,32 @@ const agent = new Agent({
     }),
 });
 
-createInspector({ root: $('#inspector-pane'), bus, getSession: () => agent.session, getLimits: () => settings.getConfig().limits });
+// ── Right half: KPI strip + Simple (live map) and Technical views ───────────
+const getSession = () => agent.session;
+const getLimits = () => settings.getConfig().limits;
+createKpis({ root: $('#kpis'), bus, getSession, getLimits });
+const liveView = createLiveView({
+  root: $('#simple-view'),
+  bus,
+  memory,
+  toolNames: tools.names(),
+  getSession,
+  getLimits,
+  liveIndicator: $('#live-indicator'),
+  mobileTab: $('#mobile-tab-behind'),
+});
+createInspector({ root: $('#inspector-pane'), bus, getSession });
+
+const prefs = storage('local');
+function showView(view) {
+  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
+  $('#simple-view').hidden = view !== 'simple';
+  $('#tech-view').hidden = view !== 'technical';
+  prefs.write('agent-harness:view', view);
+  if (view === 'simple') requestAnimationFrame(liveView.redraw);
+}
+document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => showView(b.dataset.view)));
+showView(prefs.read('agent-harness:view', 'simple') === 'technical' ? 'technical' : 'simple');
 
 // ── Header ───────────────────────────────────────────────────────────────────
 function updateModePill() {
@@ -118,7 +145,7 @@ function renderMemory() {
     ? items.map((i) => `<li>${esc(i)}</li>`).join('')
     : '<li class="muted">Nothing saved yet. The agent saves insights with the save_insight tool.</li>';
 }
-memory.onChange = renderMemory;
+memory.subscribe(renderMemory);
 renderMemory();
 $('#memory-btn').addEventListener('click', () => memDialog.showModal());
 $('#memory-clear').addEventListener('click', () => memory.clear());

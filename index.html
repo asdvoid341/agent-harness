@@ -38,7 +38,7 @@
 
   <nav class="mobile-tabs" role="tablist" aria-label="Panels">
     <button role="tab" data-pane="app" aria-selected="true">The agent</button>
-    <button role="tab" data-pane="inspector" aria-selected="false">Behind the scenes</button>
+    <button role="tab" data-pane="inspector" aria-selected="false" id="mobile-tab-behind">Behind the scenes</button>
   </nav>
 
   <main class="split">
@@ -80,48 +80,49 @@
     <section id="inspector-pane" class="pane inspector-pane" aria-label="Behind the scenes">
       <div class="pane-head">
         <div>
-          <h2>Behind the scenes</h2>
-          <p class="muted">Live trace of the agent harness. Click a box to learn what it does.</p>
+          <h2>Behind the scenes <span id="live-indicator" class="live-ind">Idle</span></h2>
+          <p class="muted">See what the agent is doing while it works.</p>
         </div>
         <div class="insp-controls">
-          <label class="switch" title="Pause before every phase of the loop"><input id="step-mode" type="checkbox"><span class="track"></span>Step mode</label>
+          <div class="seg" role="tablist" aria-label="View">
+            <button role="tab" data-view="simple" aria-selected="true" title="Plain-English live map">Simple</button>
+            <button role="tab" data-view="technical" aria-selected="false" title="Raw requests, prompt, messages and timeline">Technical</button>
+          </div>
+          <label class="switch" title="Pause before every step so you can follow along"><input id="step-mode" type="checkbox"><span class="track"></span>Step mode</label>
           <button id="next-step" class="btn small primary" hidden disabled>Next step ▶</button>
+        </div>
+      </div>
+
+      <div id="kpis" class="kpis" aria-label="Key numbers for the current question"></div>
+
+      <!-- Simple view: live map + plain-English story -->
+      <div id="simple-view" class="view simple-view"></div>
+
+      <!-- Technical view: loop diagram, raw timeline, prompt, messages, concepts -->
+      <div id="tech-view" class="view tech-view" hidden>
+        <div id="diagram" class="diagram"></div>
+
+        <div id="now-card" class="now-card">
+          <div class="now-top"><span class="now-dot"></span><span class="now-title">Waiting for a question</span></div>
+          <p class="now-what">Ask something on the left. Every step the harness takes will appear here as it happens.</p>
+        </div>
+
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="timeline" aria-selected="true">Timeline</button>
+          <button role="tab" data-tab="prompt" aria-selected="false">Prompt</button>
+          <button role="tab" data-tab="messages" aria-selected="false">Messages</button>
+          <button role="tab" data-tab="concepts" aria-selected="false">Concepts</button>
+          <span class="spacer"></span>
           <button id="export-trace" class="btn small ghost" title="Download the full event trace as JSON">Export trace</button>
         </div>
-      </div>
-
-      <div id="diagram" class="diagram"></div>
-
-      <div id="now-card" class="now-card">
-        <div class="now-top"><span class="now-dot"></span><span class="now-title">Waiting for a question</span></div>
-        <p class="now-what">Ask something on the left. Every step the harness takes will appear here as it happens.</p>
-      </div>
-
-      <div class="stats">
-        <div class="stat"><span class="k">Model calls</span><span class="v" id="st-iter">0</span></div>
-        <div class="stat"><span class="k" title="Tokens in / out for this request">Tokens in/out</span><span class="v" id="st-tokens">–</span></div>
-        <div class="stat"><span class="k">Cost</span><span class="v" id="st-cost">–</span></div>
-        <div class="stat"><span class="k">Elapsed</span><span class="v" id="st-time">–</span></div>
-        <div class="stat wide">
-          <span class="k">Context window</span>
-          <div class="meter"><div id="ctx-fill" class="meter-fill" data-level="low"></div></div>
-          <span class="v small" id="ctx-label">–</span>
+        <div class="tab-panels">
+          <div id="tab-timeline" class="tab-panel">
+            <div id="timeline" class="timeline"><p class="timeline-empty muted">Events will stream in here. Click any entry to see the raw payload, including the exact HTTP request sent to the model.</p></div>
+          </div>
+          <div id="tab-prompt" class="tab-panel scroll" hidden></div>
+          <div id="tab-messages" class="tab-panel scroll" hidden></div>
+          <div id="tab-concepts" class="tab-panel scroll concepts" hidden></div>
         </div>
-      </div>
-
-      <div class="tabs" role="tablist">
-        <button role="tab" data-tab="timeline" aria-selected="true">Timeline</button>
-        <button role="tab" data-tab="prompt" aria-selected="false">Prompt</button>
-        <button role="tab" data-tab="messages" aria-selected="false">Messages</button>
-        <button role="tab" data-tab="concepts" aria-selected="false">Concepts</button>
-      </div>
-      <div class="tab-panels">
-        <div id="tab-timeline" class="tab-panel">
-          <div id="timeline" class="timeline"><p class="timeline-empty muted">Events will stream in here. Click any entry to see the raw payload, including the exact HTTP request sent to the model.</p></div>
-        </div>
-        <div id="tab-prompt" class="tab-panel scroll" hidden></div>
-        <div id="tab-messages" class="tab-panel scroll" hidden></div>
-        <div id="tab-concepts" class="tab-panel scroll concepts" hidden></div>
       </div>
     </section>
   </main>

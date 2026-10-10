@@ -59,24 +59,13 @@ function describe(evt) {
   }
 }
 
-export function createInspector({ root, bus, getSession, getLimits }) {
+export function createInspector({ root, bus, getSession }) {
   const diagram = renderDiagram($('#diagram', root));
   const timeline = $('#timeline', root);
   const nowCard = $('#now-card', root);
   const nextBtn = $('#next-step', root);
   const stepToggle = $('#step-mode', root);
-  const stats = {
-    iter: $('#st-iter', root),
-    tokens: $('#st-tokens', root),
-    cost: $('#st-cost', root),
-    time: $('#st-time', root),
-    ctxFill: $('#ctx-fill', root),
-    ctxLabel: $('#ctx-label', root),
-  };
-
   let currentNode = null;
-  let runStats = null;
-  let timer = null;
   let promptData = null;
 
   // ── Tabs ────────────────────────────────────────────────────────────────
@@ -193,22 +182,6 @@ export function createInspector({ root, bus, getSession, getLimits }) {
         </div>`).join('') : '<p class="muted">No messages yet in this session.</p>'}`;
   }
 
-  // ── Stats ───────────────────────────────────────────────────────────────
-  function renderStats() {
-    const limits = getLimits();
-    const r = runStats;
-    stats.iter.textContent = r ? `${r.iterations} / ${limits.maxIterations}` : `0 / ${limits.maxIterations}`;
-    stats.tokens.textContent = r ? `${fmtTokens(r.input)} / ${fmtTokens(r.output)}` : '–';
-    stats.cost.textContent = r ? (r.costKnown ? fmtCost(r.cost) : 'n/a') : '–';
-    stats.time.textContent = r ? fmtMs(Math.round((r.end ?? performance.now()) - r.t0)) : '–';
-  }
-  function setContext(tokens, budget, measured) {
-    const pct = Math.min(100, (tokens / budget) * 100);
-    stats.ctxFill.style.width = `${pct}%`;
-    stats.ctxFill.dataset.level = pct > 90 ? 'high' : pct > 65 ? 'mid' : 'low';
-    stats.ctxLabel.textContent = `${measured ? '' : '~'}${fmtTokens(tokens)} / ${fmtTokens(budget)} tokens${measured ? ' (measured)' : ''}`;
-  }
-
   // ── Event subscription ──────────────────────────────────────────────────
   bus.on((evt) => {
     const d = evt.data;
@@ -218,30 +191,13 @@ export function createInspector({ root, bus, getSession, getLimits }) {
         renderPrompt();
         renderMessages();
         diagram.resetVisited();
-        setContext(d.systemTokens + d.toolTokens, getLimits().contextBudget, false);
         break;
       case 'run:start':
         diagram.resetVisited();
-        runStats = { iterations: 0, input: 0, output: 0, cost: 0, costKnown: true, t0: performance.now() };
-        clearInterval(timer);
-        timer = setInterval(renderStats, 200);
         diagram.setLoopLabel('agent loop');
         break;
-      case 'context:check':
-        setContext(d.total, d.budget, false);
-        break;
       case 'model:request':
-        if (d.purpose === 'agent') {
-          runStats.iterations = d.iteration;
-          diagram.setLoopLabel(`iteration ${d.iteration}`);
-        }
-        break;
-      case 'model:response':
-        runStats.input += d.usage.input;
-        runStats.output += d.usage.output;
-        if (d.cost == null) runStats.costKnown = false;
-        else runStats.cost += d.cost;
-        if (d.purpose === 'agent') setContext(d.usage.input + d.usage.output, getLimits().contextBudget, true);
+        if (d.purpose === 'agent') diagram.setLoopLabel(`iteration ${d.iteration}`);
         break;
       case 'history:append':
         renderMessages();
@@ -251,8 +207,6 @@ export function createInspector({ root, bus, getSession, getLimits }) {
         nextBtn.classList.add('pulse');
         break;
       case 'run:end':
-        if (runStats) runStats.end = performance.now();
-        clearInterval(timer);
         renderMessages();
         nextBtn.disabled = true;
         break;
@@ -263,7 +217,6 @@ export function createInspector({ root, bus, getSession, getLimits }) {
       if (bus.stepMode && !bus.paused) nextBtn.disabled = true;
     }
 
-    renderStats();
     const desc = describe(evt);
     if (!desc) return;
     if (desc.node !== undefined) {
@@ -275,6 +228,5 @@ export function createInspector({ root, bus, getSession, getLimits }) {
     addTimeline(evt, desc);
   });
 
-  renderStats();
   return { showTab };
 }

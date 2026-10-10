@@ -2,7 +2,12 @@
 
 A working AI agent on the left, and a live look inside its **harness** on the right.
 
-The agent is a **data analyst**: ask a question in plain English and it inspects tables, writes SQL, runs it in your browser (DuckDB-WASM), draws charts and remembers insights. While it works, the right-hand panel shows every step the harness takes: prompt assembly, context management, the raw model request and response, tool-call validation, guardrails and human approval, retries and stop conditions.
+The agent is a **data analyst**: ask a question in plain English and it inspects tables, writes SQL, runs it in your browser (DuckDB-WASM), draws charts and remembers insights.
+
+The right-hand panel has two views, with a KPI strip on top (tokens, cost, AI calls, tools used, time, working memory):
+
+- **Simple** (default, for non-technical viewers): a live map. The *Agent* lights up as soon as you ask, its calls to the *AI model* animate, the *tool* it uses glows with its result, *Safety checks* show when your approval is needed, and *Working memory* / *Long-term memory* update as they change. Below the map, a plain-English “What just happened” story, with a *Why?* explainer on each step.
+- **Technical**: the loop diagram, the raw event timeline (including the exact HTTP request sent to the model), the assembled prompt, the stored messages and concept cards.
 
 **Live demo:** `https://<your-username>.github.io/agent-harness/`
 
@@ -91,7 +96,8 @@ src/
     agent.js events.js tools.js context.js guardrails.js memory.js prompt.js pricing.js
   providers/           anthropic.js openai.js gemini.js demo.js http.js
   usecase/             db.js (DuckDB) tools.js sample-data.js demo-scripts.js
-  ui/                  chat.js inspector.js diagram.js concepts.js settings.js util.js
+  ui/                  chat.js, liveview.js (Simple view), kpis.js, inspector.js (Technical view),
+                       diagram.js concepts.js settings.js util.js
 ```
 
 ## Adding a tool

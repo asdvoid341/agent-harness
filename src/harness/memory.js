@@ -14,7 +14,12 @@ export class MemoryStore {
     this.key = key;
     this.max = max;
     this.items = this.load();
-    this.onChange = null;
+    this.listeners = new Set();
+  }
+
+  subscribe(fn) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
   }
 
   load() {
@@ -32,7 +37,8 @@ export class MemoryStore {
     } catch {
       /* storage unavailable: memory lasts for this page only */
     }
-    this.onChange?.(this.list());
+    const items = this.list();
+    this.listeners.forEach((fn) => fn(items));
   }
 
   list() {
