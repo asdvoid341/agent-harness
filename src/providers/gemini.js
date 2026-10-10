@@ -25,8 +25,10 @@ export const gemini = {
   label: 'Google Gemini',
   keyPlaceholder: 'AIza…',
   keyUrl: 'https://aistudio.google.com/apikey',
-  models: ['gemini-2.5-flash', 'gemini-2.5-pro'],
-  defaultModel: 'gemini-2.5-flash',
+  models: ['gemini-3.8-flash'],
+  defaultModel: 'gemini-3.8-flash',
+  // Saved settings that still point at these are moved to the default.
+  retiredModels: ['gemini-2.5-flash', 'gemini-2.5-pro'],
   supportsEffort: false,
 
   buildRequest({ system, tools, messages, model, apiKey }) {

@@ -24,6 +24,7 @@ export function createSettings({ dialog, providers, onChange }) {
     remember: {},
   };
   for (const id of Object.keys(providers)) {
+    if (providers[id].retiredModels?.includes(state.models[id])) delete state.models[id];
     const k = session.read(keyName(id));
     if (k) {
       state.keys[id] = k;
