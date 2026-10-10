@@ -6,10 +6,10 @@
  *  - writeupUrl: optional link to a blog post or write-up about the project.
  */
 export const APP_CONFIG = {
-  repoUrl: 'https://github.com/YOUR-GITHUB-USERNAME/agent-harness',
+  repoUrl: 'https://github.com/asdvoid341/agent-harness',
   branch: 'main',
-  author: '',
-  authorUrl: '',
+  author: 'asdvoid341',
+  authorUrl: 'https://github.com/asdvoid341',
   writeupUrl: '',
 };
 

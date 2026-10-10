@@ -13,7 +13,7 @@ The right-hand panel has two views, with a KPI strip on top (tokens, cost, AI ca
 Other touches: a 4-step guided tour on first visit, chart titles that state the finding (with the discussed series highlighted), a *Based on N queries* provenance link under each answer showing the exact SQL, and an *About the data* dictionary.
 - **Technical**: the loop diagram, the raw event timeline (including the exact HTTP request sent to the model), the assembled prompt, the stored messages and concept cards.
 
-**Live demo:** `https://<your-username>.github.io/agent-harness/`
+**Live demo:** `https://asdvoid341.github.io/agent-harness/`
 
 - **No key?** It runs in demo mode: a scripted stand-in model drives the *real* harness and tools.
 - **Bring your own key** for Anthropic (Claude), OpenAI or Google Gemini to ask anything. The key stays in your browser. There is no server.
