@@ -13,6 +13,7 @@
 const money = (v) => `$${Math.round(Number(v) || 0).toLocaleString('en-US')}`;
 const pct = (v) => `${(Number(v) * 100).toFixed(1)}%`;
 const rowsOf = (r) => r?.data?.rows ?? [];
+const TARGETS_SQL = 'SELECT s.region, ROUND(SUM(s.revenue), 2) AS revenue, t.target\nFROM sales s\nJOIN (SELECT region, SUM(revenue_target) AS target FROM targets GROUP BY region) t USING (region)\nGROUP BY s.region, t.target\nORDER BY revenue DESC';
 const list = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
 
 export const SUGGESTIONS = [
@@ -44,7 +45,9 @@ const SCRIPTS = [
               name: 'make_chart',
               input: {
                 type: 'line',
-                title: 'Monthly revenue by category (2025)',
+                title: `${top.category} drives the year-end revenue spike`,
+                subtitle: 'Monthly revenue by category, 2025 (USD)',
+                highlight: top.category,
                 sql: "SELECT strftime(order_date, '%Y-%m') AS month, category, ROUND(SUM(revenue), 2) AS revenue\nFROM sales\nGROUP BY 1, 2\nORDER BY 1, 2",
                 x: 'month',
                 y: ['revenue'],
@@ -85,21 +88,23 @@ _I saved the headline finding to long-term memory. It will be part of the system
         calls: [{ name: 'describe_data', input: {} }],
       }),
       () => ({
-        reasoning: 'There is a `targets` table with region, quarter and revenue_target. I will aggregate both sides to region level, join them and chart actual against target.',
+        reasoning: 'There is a `targets` table with region, quarter and revenue_target. I will aggregate both sides to region level and join them.',
         text: 'Targets are stored per region and quarter. Joining them against actual sales:',
-        calls: [
-          {
-            name: 'make_chart',
-            input: {
-              type: 'bar',
-              title: '2025 revenue vs target by region',
-              sql: 'SELECT s.region, ROUND(SUM(s.revenue), 2) AS revenue, t.target\nFROM sales s\nJOIN (SELECT region, SUM(revenue_target) AS target FROM targets GROUP BY region) t USING (region)\nGROUP BY s.region, t.target\nORDER BY revenue DESC',
-              x: 'region',
-              y: ['revenue', 'target'],
-            },
-          },
-        ],
+        calls: [{ name: 'run_sql', input: { sql: TARGETS_SQL, purpose: 'Compare 2025 revenue with target per region' } }],
       }),
+      ({ results }) => {
+        const rows = rowsOf(results[1]).map((r) => ({ ...r, att: Number(r.revenue) / Number(r.target) }));
+        const best = [...rows].sort((a, b) => b.att - a.att)[0];
+        const worst = [...rows].sort((a, b) => a.att - b.att)[0];
+        const gap = (r) => `${Math.abs(Math.round((r.att - 1) * 100))}%`;
+        const title = best && worst && worst.att < 1
+          ? `${worst.region} missed its target by ${gap(worst)}; ${best.region} beat it by ${gap(best)}`
+          : 'Every region beat its 2025 target';
+        return {
+          reasoning: `${best?.region} is furthest above target and ${worst?.region} furthest below. A grouped bar chart makes the gap visible; I'll highlight ${worst?.region}.`,
+          calls: [{ name: 'make_chart', input: { type: 'bar', title, subtitle: 'Revenue vs target by region, 2025 (USD)', highlight: worst?.region, sql: TARGETS_SQL, x: 'region', y: ['revenue', 'target'] } }],
+        };
+      },
       ({ results }) => {
         const rows = rowsOf(results[1]).map((r) => ({ ...r, att: Number(r.revenue) / Number(r.target) }));
         const beat = rows.filter((r) => r.att >= 1).map((r) => r.region);

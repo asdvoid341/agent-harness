@@ -4,6 +4,37 @@
  * PRNG so every visitor (and the demo scripts) sees the same numbers.
  * All company names are invented.
  */
+export const DATA_PROVENANCE =
+  'Synthetic data, generated in your browser from a fixed random seed, so every visitor sees the same numbers. A few patterns are built in on purpose (West grows through the year, Electronics spikes in Nov–Dec, some regions beat their targets and some miss) so there is something real to find.';
+
+export const DATA_DICTIONARY = {
+  sales: {
+    description: 'One row per order placed in 2025 by a fictional office-equipment retailer.',
+    columns: {
+      order_id: 'Unique order number',
+      order_date: 'Date the order was placed (2025)',
+      customer: 'Customer company (invented names)',
+      segment: 'Customer type: Enterprise, Small Business or Consumer',
+      region: 'Sales region: North, South, East or West',
+      channel: 'Where the order was placed: Online or Retail',
+      category: 'Product category',
+      product: 'Product name',
+      units: 'Quantity ordered',
+      unit_price: 'List price per unit (USD)',
+      discount: 'Discount applied, from 0 to 0.15',
+      revenue: 'units × unit_price × (1 − discount), in USD',
+    },
+  },
+  targets: {
+    description: 'Quarterly revenue targets per region for 2025.',
+    columns: {
+      region: 'Sales region',
+      quarter: 'Quarter, e.g. 2025-Q1',
+      revenue_target: 'Revenue target for that region and quarter (USD)',
+    },
+  },
+};
+
 function mulberry32(seed) {
   let a = seed;
   return () => {

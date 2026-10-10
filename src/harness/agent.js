@@ -1,5 +1,5 @@
 import { validate } from './tools.js';
-import { measureContext, estimateTokens, truncate, transcriptForSummary, COMPACTION_SYSTEM, COMPACTION_INSTRUCTIONS } from './context.js';
+import { measureContext, contextBreakdown, estimateTokens, truncate, transcriptForSummary, COMPACTION_SYSTEM, COMPACTION_INSTRUCTIONS } from './context.js';
 import { checkRunLimits, withTimeout, sleep } from './guardrails.js';
 import { costOf } from './pricing.js';
 import { postJson, redactHeaders } from '../providers/http.js';
@@ -188,6 +188,7 @@ export class Agent {
       headers: redactHeaders(req.headers),
       body: req.body,
       estimatedTokens: measureContext({ system, tools, messages }).total,
+      breakdown: contextBreakdown({ system, tools, messages }),
       messageCount: messages.length,
     });
 

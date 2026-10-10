@@ -34,6 +34,13 @@ export function classifySql(sql) {
   return { decision: 'allow', reason: 'Read-only query: runs without approval.' };
 }
 
+/** Guess how to format chart values from the column names. */
+function valueFormat(columns) {
+  if (columns.some((c) => /revenue|sales|price|cost|amount|target|spend|profit|income|usd|\$/i.test(c))) return 'currency';
+  if (columns.some((c) => /pct|percent|share|rate|ratio/i.test(c))) return 'percent';
+  return 'number';
+}
+
 export function createAnalystTools({ db, memory, onDataChanged }) {
   const describe_data = {
     name: 'describe_data',
@@ -95,12 +102,14 @@ export function createAnalystTools({ db, memory, onDataChanged }) {
   const make_chart = {
     name: 'make_chart',
     description:
-      'Render a chart for the user from a read-only SQL query. `x` is the label column, `y` lists 1-4 numeric columns. For one line/bar per group (e.g. per category), give a single y column and set `series` to the grouping column. Returns per-series totals and peaks so you can describe the chart.',
+      'Render a chart for the user from a read-only SQL query. `x` is the label column, `y` lists 1-4 numeric columns. For one line/bar per group (e.g. per category), give a single y column and set `series` to the grouping column. Write `title` as the takeaway (e.g. "Electronics drives the year-end spike"), put what is plotted in `subtitle`, and use `highlight` to emphasize the series or label you are talking about. Returns per-series totals and peaks so you can describe the chart.',
     schema: {
       type: 'object',
       properties: {
         type: { type: 'string', enum: ['bar', 'line', 'pie', 'doughnut'] },
-        title: { type: 'string', minLength: 1, maxLength: 100 },
+        title: { type: 'string', minLength: 1, maxLength: 100, description: 'The takeaway, as a short sentence.' },
+        subtitle: { type: 'string', maxLength: 120, description: 'What is plotted, with units, e.g. "Monthly revenue by category, 2025 (USD)".' },
+        highlight: { type: 'string', maxLength: 80, description: 'Optional series name (or x label) to emphasize; others are muted.' },
         sql: { type: 'string', minLength: 1, description: 'Read-only query producing the chart data, ordered as it should be plotted.' },
         x: { type: 'string', description: 'Column used for labels / x-axis.' },
         y: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 4, description: 'Numeric column(s) to plot.' },
@@ -113,7 +122,7 @@ export function createAnalystTools({ db, memory, onDataChanged }) {
       const p = classifySql(sql);
       return p.decision === 'allow' ? p : { decision: 'deny', reason: 'make_chart only accepts read-only queries.' };
     },
-    async run({ type, title, sql, x, y, series }) {
+    async run({ type, title, subtitle, highlight, sql, x, y, series }) {
       const res = await db.query(sql);
       const cols = res.columns.map((c) => c.name);
       const missing = [x, ...y, ...(series ? [series] : [])].filter((c) => !cols.includes(c));
@@ -148,7 +157,7 @@ export function createAnalystTools({ db, memory, onDataChanged }) {
       });
       return {
         content: { rendered: true, type, title, points: labels.length, series: summary, ...(res.rows.length <= 12 && { rows: res.rows }) },
-        display: { kind: 'chart', spec: { type, title, labels, datasets, stacked: false } },
+        display: { kind: 'chart', spec: { type, title, subtitle, highlight, labels, datasets, format: valueFormat(y) } },
       };
     },
   };

@@ -2,18 +2,18 @@ import { measureContext } from '../harness/context.js';
 import { fmtTokens, fmtCost, fmtMs } from './util.js';
 
 const KPIS = [
-  { id: 'tokens', label: 'Tokens used', tip: 'Tokens are the small chunks of text the AI reads and writes (roughly ¾ of a word each). Providers charge per token.' },
-  { id: 'cost', label: 'Cost', tip: 'What this question cost on your API account, estimated from the provider’s published prices.' },
-  { id: 'calls', label: 'AI model calls', tip: 'How many times the agent asked the AI model “what should I do next?”. Each tool result means another call.' },
-  { id: 'tools', label: 'Tools used', tip: 'How many times the agent used a tool (looking at tables, running queries, drawing charts, saving notes).' },
-  { id: 'time', label: 'Time', tip: 'How long this question has taken so far.' },
-  { id: 'memory', label: 'Working memory', tip: 'How full the conversation is compared with the budget. When it fills up, the agent summarizes older messages to make room.' },
+  { id: 'tokens', kind: 'model', label: 'Tokens', tip: 'Tokens are the small chunks of text the AI reads and writes (roughly ¾ of a word each). Providers charge per token.' },
+  { id: 'cost', kind: 'model', label: 'Cost', tip: 'What this question cost on your API account, estimated from the provider’s published prices.' },
+  { id: 'calls', kind: 'model', label: 'AI calls', tip: 'How many times the agent asked the AI model “what should I do next?”. Each tool result means another call.' },
+  { id: 'tools', kind: 'tool', label: 'Tool uses', tip: 'How many times the agent used a tool (looking at tables, running queries, drawing charts, saving notes).' },
+  { id: 'time', kind: 'agent', label: 'Time', tip: 'How long this question has taken so far.' },
+  { id: 'memory', kind: 'memory', label: 'Memory', tip: 'How full the conversation is compared with the budget. When it fills up, the agent summarizes older messages to make room.' },
 ];
 
 /** The KPI strip above both views: per-question numbers, with session totals underneath. */
 export function createKpis({ root, bus, getSession, getLimits }) {
   root.innerHTML = KPIS.map(
-    (k) => `<div class="kpi kpi-${k.id}" title="${k.tip}">
+    (k) => `<div class="kpi kpi-${k.id} k-${k.kind}" title="${k.tip}">
       <div class="kpi-k">${k.label} <span class="kpi-i" aria-hidden="true">ⓘ</span></div>
       <div class="kpi-v" data-v="${k.id}">–</div>
       ${k.id === 'memory' ? '<div class="meter"><div class="meter-fill" data-fill></div></div>' : ''}

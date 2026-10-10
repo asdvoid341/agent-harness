@@ -20,15 +20,16 @@
 <body data-pane="app">
   <header class="topbar">
     <div class="brand">
-      <span class="logo" aria-hidden="true">↻</span>
+      <span class="logo" aria-hidden="true" data-icon="agent"></span>
       <div>
         <div class="brand-name">Agent Harness, Explained</div>
-        <div class="brand-sub">A working agent on the left. What it's doing behind the scenes on the right.</div>
+        <div class="brand-sub">A working AI agent, and a live look at the harness around it<span id="byline"></span></div>
       </div>
     </div>
     <div class="top-actions">
       <button id="mode-pill" class="mode-pill" data-mode="demo" title="Change provider / model"></button>
-      <button id="open-settings" class="btn ghost" title="Settings">⚙ <span class="hide-sm">Settings</span></button>
+      <button id="start-tour" class="btn ghost" title="Take the 1-minute tour"><span data-icon="compass"></span><span class="hide-sm">Tour</span></button>
+      <button id="open-settings" class="btn ghost" title="Settings"><span data-icon="gear"></span><span class="hide-sm">Settings</span></button>
       <a id="repo-link" class="btn ghost" href="#" target="_blank" rel="noopener" title="Source on GitHub">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         <span class="hide-sm">Source</span>
@@ -56,9 +57,10 @@
         <span class="databar-label">Tables</span>
         <div id="table-chips" class="table-chips"></div>
         <div class="databar-actions">
-          <label class="btn small" title="Load your own CSV as a table (stays in your browser)">Upload CSV<input id="csv-input" type="file" accept=".csv,text/csv" hidden></label>
-          <button id="reset-data" class="btn small ghost" title="Restore the sample tables">Reset data</button>
-          <button id="memory-btn" class="btn small ghost" title="Long-term memory">🧠 <span id="memory-count">0</span></button>
+          <button id="about-data" class="btn small ghost" title="Data dictionary: what each column means"><span data-icon="book"></span>About the data</button>
+          <label class="btn small" title="Load your own CSV as a table (stays in your browser)"><span data-icon="upload"></span>Upload CSV<input id="csv-input" type="file" accept=".csv,text/csv" hidden></label>
+          <button id="reset-data" class="btn small ghost" title="Restore the sample tables"><span data-icon="reset"></span>Reset</button>
+          <button id="memory-btn" class="btn small ghost" title="Long-term memory"><span data-icon="memory"></span><span id="memory-count">0</span></button>
         </div>
       </div>
 
@@ -81,7 +83,6 @@
       <div class="pane-head">
         <div>
           <h2>Behind the scenes <span id="live-indicator" class="live-ind">Idle</span></h2>
-          <p class="muted">See what the agent is doing while it works.</p>
         </div>
         <div class="insp-controls">
           <div class="seg" role="tablist" aria-label="View">
@@ -91,6 +92,7 @@
           <label class="switch" title="Pause before every step so you can follow along"><input id="step-mode" type="checkbox"><span class="track"></span>Step mode</label>
           <button id="next-step" class="btn small primary" hidden disabled>Next step ▶</button>
         </div>
+        <p class="thesis">The AI model is only the brain. The <b>harness</b> is everything around it: tools, memory, safety checks and the loop that ties them together.</p>
       </div>
 
       <div id="kpis" class="kpis" aria-label="Key numbers for the current question"></div>
@@ -145,7 +147,7 @@
           <label class="check"><input id="set-remember" type="checkbox"> Remember in this tab only (sessionStorage)</label>
           <a id="set-keylink" href="#" target="_blank" rel="noopener">Get a key ↗</a>
         </div>
-        <p class="privacy">🔒 Your key is used only in your browser to call the provider directly. It is never sent anywhere else, there is no server, and it isn't written to disk unless you tick “remember” (cleared when the tab closes). Tip: use a key with a low spending limit.</p>
+        <p class="privacy">Your key is used only in your browser to call the provider directly. It is never sent anywhere else, there is no server, and it isn't written to disk unless you tick “remember” (cleared when the tab closes). Tip: use a key with a low spending limit.</p>
       </div>
 
       <div id="model-row" class="field-group">
@@ -188,10 +190,19 @@
     </form>
   </dialog>
 
+  <!-- ───────────── Data dictionary ───────────── -->
+  <dialog id="dict-dialog" class="dialog wide">
+    <form method="dialog">
+      <h3>About the data</h3>
+      <div data-el="dict-body" class="dict-body"></div>
+      <div class="dialog-actions"><span class="spacer"></span><button class="btn primary">Close</button></div>
+    </form>
+  </dialog>
+
   <!-- ───────────── Memory ───────────── -->
   <dialog id="memory-dialog" class="dialog">
     <form method="dialog">
-      <h3>🧠 Long-term memory</h3>
+      <h3>Long-term memory</h3>
       <p class="muted">Insights the agent saved with <code>save_insight</code>. They are added to the system prompt when a <b>new session</b> starts. Stored only in this browser.</p>
       <ul id="memory-list" class="memory-list"></ul>
       <div class="dialog-actions">

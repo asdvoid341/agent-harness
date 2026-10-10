@@ -6,7 +6,11 @@ The agent is a **data analyst**: ask a question in plain English and it inspects
 
 The right-hand panel has two views, with a KPI strip on top (tokens, cost, AI calls, tools used, time, working memory):
 
-- **Simple** (default, for non-technical viewers): a live map. The *Agent* lights up as soon as you ask, its calls to the *AI model* animate, the *tool* it uses glows with its result, *Safety checks* show when your approval is needed, and *Working memory* / *Long-term memory* update as they change. Below the map, a plain-English “What just happened” story, with a *Why?* explainer on each step.
+- **Simple** (default, for non-technical viewers): a live map. The *Agent* lights up as soon as you ask, its calls to the *AI model* animate, the *tool* it uses glows with its result, *Safety checks* show when your approval is needed, and *Working memory* / *Long-term memory* update as they change. One colour per concept is used everywhere (agent, AI model, tools, safety, memory). Below the map:
+  - **What just happened**: a plain-English story grouped into **Think → Act → Observe** cycles (the ReAct pattern), with a *Why?* explainer on each step.
+  - **Anatomy of this answer**: a stacked bar of what the model re-reads on every call (instructions, tool manuals, conversation, tool results) and a timing waterfall, each with a one-line insight.
+
+Other touches: a 4-step guided tour on first visit, chart titles that state the finding (with the discussed series highlighted), a *Based on N queries* provenance link under each answer showing the exact SQL, and an *About the data* dictionary.
 - **Technical**: the loop diagram, the raw event timeline (including the exact HTTP request sent to the model), the assembled prompt, the stored messages and concept cards.
 
 **Live demo:** `https://<your-username>.github.io/agent-harness/`
@@ -83,7 +87,7 @@ python -m http.server 8000
 1. Push this repo to GitHub.
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
 3. Every push to `main` deploys via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
-4. Set `repoUrl` in [`src/config.js`](src/config.js) so the guide's “where in the code” links point at your repo.
+4. In [`src/config.js`](src/config.js), set `repoUrl` (so the guide's “where in the code” links point at your repo) and `author` / `authorUrl` / `writeupUrl` for the byline in the header.
 
 ## Project layout
 
@@ -96,7 +100,8 @@ src/
     agent.js events.js tools.js context.js guardrails.js memory.js prompt.js pricing.js
   providers/           anthropic.js openai.js gemini.js demo.js http.js
   usecase/             db.js (DuckDB) tools.js sample-data.js demo-scripts.js
-  ui/                  chat.js, liveview.js (Simple view), kpis.js, inspector.js (Technical view),
+  ui/                  chat.js, liveview.js (Simple view), analytics.js (Anatomy charts), kpis.js,
+                       inspector.js (Technical view), tour.js, datadict.js, icons.js,
                        diagram.js concepts.js settings.js util.js
 ```
 

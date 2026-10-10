@@ -11,6 +11,13 @@ export const CONCEPTS = [
     body: 'An agent is a loop: call the model, run whatever tools it asks for, append the results, and call it again until it replies without asking for a tool. Everything else in a harness exists to make that loop safe, observable and affordable.',
   },
   {
+    id: 'react',
+    title: 'Think → Act → Observe (the ReAct pattern)',
+    nodes: ['decide', 'execute'],
+    file: 'src/harness/agent.js',
+    body: 'Most agents follow the ReAct pattern (“reason + act”). The model thinks about what to do, acts by asking for a tool, then observes the result, and repeats until it can answer. Each pass through the harness loop is one Think → Act → Observe cycle.',
+  },
+  {
     id: 'prompt',
     title: 'Prompt assembly',
     nodes: ['prompt'],

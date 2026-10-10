@@ -26,6 +26,18 @@ export function measureContext({ system, tools, messages }) {
   return { system: sys, tools: tl, history, total: sys + tl + history, messages: messages.length };
 }
 
+/** Estimated tokens by source: what the model is actually re-reading on each call. */
+export function contextBreakdown({ system, tools, messages }) {
+  const out = { system: estimateTokens(system), tools: estimateTokens(tools), conversation: 0, toolResults: 0 };
+  for (const m of messages) {
+    for (const b of m.content) {
+      if (b.type === 'tool_result') out.toolResults += estimateTokens(b.output);
+      else out.conversation += estimateTokens(b.type === 'text' ? b.text : b);
+    }
+  }
+  return out;
+}
+
 export function truncate(text, maxChars) {
   if (text.length <= maxChars) return { text, truncated: false, originalLength: text.length };
   return {

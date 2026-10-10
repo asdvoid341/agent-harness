@@ -13,6 +13,10 @@ import { createInspector } from './ui/inspector.js';
 import { createLiveView } from './ui/liveview.js';
 import { createKpis } from './ui/kpis.js';
 import { createSettings } from './ui/settings.js';
+import { createAnalytics } from './ui/analytics.js';
+import { createTour } from './ui/tour.js';
+import { createDataDictionary } from './ui/datadict.js';
+import { icon } from './ui/icons.js';
 import { $, esc, storage } from './ui/util.js';
 import { APP_CONFIG } from './config.js';
 
@@ -65,6 +69,7 @@ const liveView = createLiveView({
   liveIndicator: $('#live-indicator'),
   mobileTab: $('#mobile-tab-behind'),
 });
+createAnalytics({ root: $('#anatomy'), bus });
 createInspector({ root: $('#inspector-pane'), bus, getSession });
 
 const prefs = storage('local');
@@ -95,12 +100,27 @@ $('#demo-add-key').addEventListener('click', () => settings.open());
 $('#repo-link').href = APP_CONFIG.repoUrl;
 updateModePill();
 
+// Static icons (one line-icon set everywhere) and the optional byline.
+document.querySelectorAll('[data-icon]').forEach((el) => (el.innerHTML = icon(el.dataset.icon, 15)));
+if (APP_CONFIG.author) {
+  const who = APP_CONFIG.authorUrl ? `<a href="${esc(APP_CONFIG.authorUrl)}" target="_blank" rel="noopener">${esc(APP_CONFIG.author)}</a>` : esc(APP_CONFIG.author);
+  $('#byline').innerHTML = ` · by ${who}${APP_CONFIG.writeupUrl ? ` · <a href="${esc(APP_CONFIG.writeupUrl)}" target="_blank" rel="noopener">How it works</a>` : ''}`;
+}
+
+// ── Data dictionary ──────────────────────────────────────────────────────────
+const dict = createDataDictionary({ dialog: $('#dict-dialog'), db });
+$('#about-data').addEventListener('click', () => dict.open());
+$('#table-chips').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-table]');
+  if (chip) dict.open(chip.dataset.table);
+});
+
 // ── Data bar ─────────────────────────────────────────────────────────────────
 async function refreshTables() {
   const el = $('#table-chips');
   try {
     const tables = await db.tables();
-    el.innerHTML = tables.map((t) => `<span class="table-chip" title="${esc(t.columns.map((c) => `${c.name} ${c.type}`).join(', '))}">${esc(t.name)} <b>${t.rows.toLocaleString()}</b></span>`).join('');
+    el.innerHTML = tables.map((t) => `<button type="button" class="table-chip" data-table="${esc(t.name)}" title="What's in ${esc(t.name)}? (data dictionary)">${esc(t.name)} <b>${t.rows.toLocaleString()}</b></button>`).join('');
   } catch (err) {
     el.innerHTML = `<span class="table-chip error">database unavailable</span>`;
   }
@@ -116,23 +136,23 @@ $('#reset-data').addEventListener('click', async () => {
   if (agent.running) return;
   await loadSample();
   await refreshTables();
-  chat.notice('↺ Sample tables restored to their original state.');
+  chat.notice('Sample tables restored to their original state.', 'info', 'reset');
 });
 
 $('#csv-input').addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
   e.target.value = '';
   if (!file || agent.running) return;
-  if (file.size > 15 * 1024 * 1024) return chat.notice('That file is larger than 15 MB. Please use a smaller CSV.', 'warn');
+  if (file.size > 15 * 1024 * 1024) return chat.notice('That file is larger than 15 MB. Please use a smaller CSV.', 'warn', 'alert');
   const name = tableNameFromFile(file.name);
   try {
     await db.loadCsv(name, await file.text());
     await refreshTables();
     await agent.newSession('data-changed');
     chat.clear();
-    chat.notice(`📄 Loaded **${name}** from your file (it stays in this browser). A new session started so the system prompt includes the new table.`);
+    chat.notice(`Loaded **${name}** from your file (it stays in this browser). A new session started so the system prompt includes the new table.`, 'info', 'upload');
   } catch (err) {
-    chat.notice(`Couldn't load that CSV: ${err.message}`, 'error');
+    chat.notice(`Couldn't load that CSV: ${err.message}`, 'error', 'xCircle');
   }
 });
 
@@ -202,12 +222,44 @@ input.addEventListener('input', autosize);
 stopBtn.addEventListener('click', () => controller?.abort());
 
 // ── Mobile: tabs between the two halves ──────────────────────────────────────
-document.querySelectorAll('[data-pane]').forEach((b) =>
-  b.addEventListener('click', () => {
-    document.querySelectorAll('[data-pane]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-    document.body.dataset.pane = b.dataset.pane;
-  }),
-);
+function showPane(pane) {
+  document.querySelectorAll('.mobile-tabs [data-pane]').forEach((x) => x.setAttribute('aria-selected', String(x.dataset.pane === pane)));
+  document.body.dataset.pane = pane;
+}
+document.querySelectorAll('.mobile-tabs [data-pane]').forEach((b) => b.addEventListener('click', () => showPane(b.dataset.pane)));
+
+// ── Guided tour (first visit, or the Tour button) ────────────────────────────
+const tour = createTour({
+  steps: [
+    {
+      target: '#composer',
+      title: 'Ask a question',
+      body: 'Type a question about the data, or pick a suggestion. The agent answers by running real SQL on a real database inside your browser.',
+      before: () => showPane('app'),
+    },
+    {
+      target: '#stage',
+      title: 'Watch the harness work',
+      body: 'The **AI model is only the brain**. The agent around it (the harness) runs the loop: it asks the model what to do, uses tools, runs safety checks and manages memory. Each part lights up as it is used.',
+      before: () => {
+        showPane('inspector');
+        showView('simple');
+      },
+    },
+    {
+      target: '.below',
+      title: 'Think → Act → Observe',
+      body: 'Every step is narrated in plain English, grouped into Think → Act → Observe cycles. The **Anatomy** tab shows where the tokens and the time went, because the model re-reads everything on every call.',
+    },
+    {
+      target: '.seg',
+      title: 'Go deeper',
+      body: 'Switch to **Technical** for the exact requests sent to the model, the assembled prompt and the raw event timeline. **Step mode** pauses before each phase so you can follow along.',
+    },
+  ],
+  onEnd: () => showPane('app'),
+});
+$('#start-tour').addEventListener('click', () => tour.start());
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 (async () => {
@@ -219,8 +271,9 @@ document.querySelectorAll('[data-pane]').forEach((b) =>
   } catch (err) {
     console.error(err);
     $('#table-chips').innerHTML = '<span class="table-chip error">DuckDB failed to load</span>';
-    chat.notice(`The in-browser database failed to load (${esc(err.message)}). Tools will return errors. Check your connection or ad-blocker and reload.`, 'error');
+    chat.notice(`The in-browser database failed to load (${esc(err.message)}). Tools will return errors. Check your connection or ad-blocker and reload.`, 'error', 'xCircle');
   }
   await agent.newSession('start');
   sendBtn.disabled = false;
+  tour.startIfNew();
 })();
