@@ -153,6 +153,14 @@
           <input id="set-model" list="model-list" spellcheck="false">
           <datalist id="model-list"></datalist>
         </label>
+        <div id="price-row" class="price-row">
+          <span class="price-label">Price per 1M tokens (USD)</span>
+          <span id="price-known" class="muted small"></span>
+          <div id="price-inputs" class="grid2">
+            <label class="field">Input<input id="price-in" type="number" min="0" step="0.01" placeholder="e.g. 0.75"></label>
+            <label class="field">Output<input id="price-out" type="number" min="0" step="0.01" placeholder="e.g. 3.75"></label>
+          </div>
+        </div>
       </div>
       <div id="effort-row" class="field-group">
         <label class="field">Effort (Claude)

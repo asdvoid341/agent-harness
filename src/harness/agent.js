@@ -196,7 +196,7 @@ export class Agent {
     const res = provider.parseResponse(json, model);
     const ms = Math.round(performance.now() - t);
 
-    const cost = costOf(model, res.usage);
+    const cost = costOf(model, res.usage, cfg.customPrice);
     run.input += res.usage.input;
     run.output += res.usage.output;
     if (cost == null) run.costKnown = false;

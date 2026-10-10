@@ -1,5 +1,6 @@
 import { $, esc, storage } from './util.js';
 import { DEFAULT_LIMITS } from '../harness/guardrails.js';
+import { PRICES } from '../harness/pricing.js';
 
 const local = storage('local');
 const session = storage('session');
@@ -19,6 +20,7 @@ export function createSettings({ dialog, providers, onChange }) {
     providerId: providers[saved.providerId] ? saved.providerId : 'demo',
     models: saved.models ?? {},
     effort: saved.effort ?? 'medium',
+    prices: saved.prices ?? {},
     limits: { ...DEFAULT_LIMITS, ...(saved.limits ?? {}) },
     keys: {},
     remember: {},
@@ -47,6 +49,10 @@ export function createSettings({ dialog, providers, onChange }) {
     cost: $('#lim-cost', dialog),
     context: $('#lim-context', dialog),
     output: $('#lim-output', dialog),
+    priceKnown: $('#price-known', dialog),
+    priceInputs: $('#price-inputs', dialog),
+    priceIn: $('#price-in', dialog),
+    priceOut: $('#price-out', dialog),
     error: $('#set-error', dialog),
     message: $('#set-message', dialog),
   };
@@ -65,7 +71,21 @@ export function createSettings({ dialog, providers, onChange }) {
     f.keyLink.href = p.keyUrl ?? '#';
     f.modelList.innerHTML = p.models.map((m) => `<option value="${esc(m)}"></option>`).join('');
     f.model.value = state.models[p.id] ?? p.defaultModel;
+    syncPrice();
     f.error.textContent = '';
+  }
+
+  function syncPrice() {
+    const model = f.model.value.trim();
+    const builtIn = PRICES[model];
+    const p = typeof builtIn === 'function' ? builtIn() : builtIn;
+    f.priceInputs.hidden = !!p;
+    f.priceKnown.textContent = p
+      ? `Built in: $${p.input} input / $${p.output} output.`
+      : 'Not in the built-in price table. Enter the provider’s price to see the cost (optional).';
+    const custom = state.prices[model];
+    f.priceIn.value = custom?.input ?? '';
+    f.priceOut.value = custom?.output ?? '';
   }
 
   function open(message = '') {
@@ -83,6 +103,7 @@ export function createSettings({ dialog, providers, onChange }) {
   }
 
   f.provider.addEventListener('change', syncProviderFields);
+  f.model.addEventListener('input', syncPrice);
 
   dialog.querySelector('form').addEventListener('submit', (e) => {
     if (e.submitter?.value === 'cancel') return;
@@ -105,6 +126,12 @@ export function createSettings({ dialog, providers, onChange }) {
       if (f.remember.checked) session.write(keyName(p.id), key);
       else session.remove(keyName(p.id));
       state.models[p.id] = f.model.value.trim() || p.defaultModel;
+      const pin = parseFloat(f.priceIn.value);
+      const pout = parseFloat(f.priceOut.value);
+      if (!PRICES[state.models[p.id]]) {
+        if (Number.isFinite(pin) && Number.isFinite(pout)) state.prices[state.models[p.id]] = { input: pin, output: pout };
+        else delete state.prices[state.models[p.id]];
+      }
     }
     state.effort = f.effort.value;
     state.limits = {
@@ -114,7 +141,7 @@ export function createSettings({ dialog, providers, onChange }) {
       contextBudget: num(f.context, 2000, 900_000, DEFAULT_LIMITS.contextBudget),
       maxToolOutputChars: num(f.output, 500, 100_000, DEFAULT_LIMITS.maxToolOutputChars),
     };
-    local.write(SETTINGS_KEY, { providerId: state.providerId, models: state.models, effort: state.effort, limits: state.limits });
+    local.write(SETTINGS_KEY, { providerId: state.providerId, models: state.models, effort: state.effort, limits: state.limits, prices: state.prices });
     dialog.close();
     onChange?.(getConfig());
   });
@@ -136,6 +163,7 @@ export function createSettings({ dialog, providers, onChange }) {
       apiKey: state.keys[provider.id] ?? '',
       effort: state.effort,
       limits: state.limits,
+      customPrice: state.prices[provider.needsKey === false ? provider.defaultModel : state.models[provider.id] ?? provider.defaultModel],
     };
   }
 

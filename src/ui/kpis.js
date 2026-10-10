@@ -53,7 +53,7 @@ export function createKpis({ root, bus, getSession, getLimits }) {
       set('time', '–', 'this question');
     } else {
       set('tokens', fmtTokens(run.input + run.output), `${fmtTokens(run.input)} read · ${fmtTokens(run.output)} written`);
-      set('cost', run.costKnown ? fmtCost(run.cost) : 'n/a', session.costKnown ? `session ${fmtCost(session.cost)}` : 'price unknown for this model');
+      set('cost', run.costKnown ? fmtCost(run.cost) : 'n/a', session.costKnown ? `session ${fmtCost(session.cost)}` : 'no price set: add one in Settings');
       set('calls', String(run.calls), `limit ${limits.maxIterations} per question`);
       const extras = [run.approved && `${run.approved} approved`, run.blocked && `${run.blocked} blocked`].filter(Boolean).join(' · ');
       set('tools', String(run.tools), extras || `session ${session.tools}`);
